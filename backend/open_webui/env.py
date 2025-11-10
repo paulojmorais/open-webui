@@ -114,7 +114,7 @@ WEBUI_NAME = os.environ.get("WEBUI_NAME", "CEO Digital")
 if WEBUI_NAME != "CEO Digital":
     WEBUI_NAME += " (CEO Digital)"
 
-WEBUI_FAVICON_URL = "https://openwebui.com/favicon.png"
+WEBUI_FAVICON_URL = "https://ceodigital.app/favicon.png"
 
 TRUSTED_SIGNATURE_KEY = os.environ.get("TRUSTED_SIGNATURE_KEY", "")
 
