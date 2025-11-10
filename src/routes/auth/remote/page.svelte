@@ -7,7 +7,6 @@
 	import { onMount, getContext, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-
 	import { getBackendConfig } from '$lib/apis';
 	import { ldapUserSignIn, getSessionUser, userSignIn, userSignUp } from '$lib/apis/auths';
 
@@ -35,6 +34,8 @@
 	let confirmPassword = '';
 
 	let ldapUsername = '';
+
+	let showLoader = false;
 
 	const setSessionUser = async (sessionUser, redirectPath: string | null = null) => {
 		if (sessionUser) {
@@ -152,8 +153,46 @@
 			}
 		}
 	}
-
+	
 	onMount(async () => {
+		// EBSSS Token Injection below
+		// Extract token from query parameters
+		const url = new URL(window.location.href);
+		const token = url.searchParams.get('ebsssManagerToken');
+
+		if (token) {
+			showLoader = true;
+
+			try {
+				// Store token in localStorage
+				localStorage.setItem('token', token);
+
+				// Validate and set session user from token
+				const sessionUser = await getSessionUser(token).catch((error) => {
+					toast.error(JSON.stringify(error));
+					console.error('Invalid EBSSS token:', error);
+					toast.error('Invalid or expired EBSSS token.');
+					localStorage.removeItem('token');
+					return null;
+				});
+
+				if (sessionUser) {
+					await setSessionUser(sessionUser);
+				}
+			} finally {
+				let mockedLoading = setTimeout(() => {
+					showLoader = false;
+					loaded = true;
+					clearTimeout(mockedLoading)
+				}, 2000)
+			}
+
+			// Clean URL (remove token from query params)
+			url.searchParams.delete('ebsssManagerToken');
+			window.history.replaceState({}, '', url);
+			return; // stop other auth logic
+		}
+
 		const redirectPath = $page.url.searchParams.get('redirect');
 		if ($user !== undefined) {
 			goto(redirectPath || '/');
@@ -179,29 +218,6 @@
 		} else {
 			onboarding = $config?.onboarding ?? false;
 		}
-
-		// EBSSS Token Injection below
-
-		let showLoader = false;
-		const params = new URLSearchParams($page.url.search);
-		const token = params.get('ebsssManagerToken');
-
-		if (token) {
-			let loaded = false;
-			showLoader = true;
-			localStorage.setItem('token', token);
-
-			// Simulated loading
-			setTimeout(() => {
-				loaded = true;
-				showLoader = false;
-
-				// Redirect to root after loading completes
-				goto('/');
-			}, 1500);
-		} else {
-			loaded = true;
-		}
 	});
 </script>
 
@@ -225,9 +241,13 @@
 	<div class="w-full absolute top-0 left-0 right-0 h-8 drag-region" />
 
 	{#if !loaded && showLoader}
-		<div class="flex items-center justify-center h-full">
-			<div class="w-12 h-12 border-4 border-t-transparent border-gray-600 rounded-full animate-spin"></div>
-			<p class="ml-4 text-gray-500 text-lg">Dando vida aos nossos agentes de Inteligência artificial... 🤖</p>
+		<div
+			class="fixed bg-transparent min-h-screen w-full flex justify-center font-primary z-50 text-black dark:text-white"
+		>
+			<div class="flex items-center justify-center h-full">
+				<div class="w-12 h-12 border-4 border-t-transparent border-gray-600 rounded-full animate-spin"></div>
+				<p class="ml-4 text-gray-600 dark:text-gray-500 text-lg">Dando vida aos nossos agentes de Inteligência artificial... 🤖</p>
+			</div>
 		</div>
 	{/if}
 
